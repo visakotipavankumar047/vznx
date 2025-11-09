@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-
-const API_BASE = process.env.VITE_BACKEND_LINK || 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
 
 export function useItems() {
   const [items, setItems] = useState([]);

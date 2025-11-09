@@ -1,4 +1,10 @@
-const API_BASE = process.env.VITE_BACKEND_LINK || 'http://localhost:5000/api';
+const LOCAL_API_BASE = 'http://localhost:5000/api';
+const PROD_API_BASE = 'https://vznxbackend.vercel.app/api';
+
+const DEFAULT_API_BASE =
+  process.env.NODE_ENV === 'production' ? PROD_API_BASE : LOCAL_API_BASE;
+
+export const API_BASE = process.env.VITE_BACKEND_LINK || DEFAULT_API_BASE;
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
