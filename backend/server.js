@@ -5,13 +5,10 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 const dotenv = require('dotenv');
-const serverless = require('serverless-http');
-
 const projectsRouter = require('./routes/projects');
 const tasksRouter = require('./routes/tasks');
 const teamMembersRouter = require('./routes/teamMembers');
 const itemsRouter = require('./routes/items');
-module.exports = serverless(app);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
