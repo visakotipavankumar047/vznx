@@ -26,6 +26,14 @@ app.use(express.json());
 app.use(helmet());
 app.use(morgan('dev'));
 
+app.get('/', (req, res) => {
+  res.send({
+    activeStatus: true,
+    error: false,
+  })
+  res.json({ message: 'Welcome to the API' });
+});
+
 app.get('/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
