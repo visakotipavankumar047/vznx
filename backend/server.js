@@ -21,7 +21,9 @@ if (!mongoUrl) {
   throw new Error('Missing MONGODB_URL in .env');
 }
 
-app.use(cors());
+app.use(cors({
+  origin: ["https://vznx-zeta.vercel.app"]
+}));
 app.use(express.json());
 app.use(helmet());
 app.use(morgan('dev'));
