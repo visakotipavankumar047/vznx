@@ -9,7 +9,7 @@ import ProjectTable from './_components/ProjectTable';
 import PageWrapper from '@/components/PageWrapper';
 import { Modal } from '@/components/Modal';
 import { ProjectForm } from '@/components/ProjectForm';
-import Analytics from '../_components/Analytics';
+import AnalyticsPanel from '@/components/AnalyticsPanel';
 
 export default function ProjectsPage() {
   const { projects, loading, error, fetchProjects, createProject, updateProject, updateProgress, deleteProject } = useProjects();
@@ -81,7 +81,7 @@ export default function ProjectsPage() {
             />
           </section>
 
-          <Analytics />
+          <AnalyticsPanel />
         </div>
 
         <Modal

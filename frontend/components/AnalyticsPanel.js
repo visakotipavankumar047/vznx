@@ -7,30 +7,58 @@ import { CheckCircle2, Circle, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 
-export default function Analytics() {
+export default function AnalyticsPanel({ enabled = true }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!enabled) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
     const fetchAllTasks = async () => {
       try {
         const projects = await api.getProjects();
         const allTasks = [];
-        
+
         for (const project of projects) {
           const projectTasks = await api.getTasks(project._id);
-          allTasks.push(...projectTasks.map(task => ({ ...task, projectName: project.name, projectId: project._id })));
+          allTasks.push(
+            ...projectTasks.map((task) => ({
+              ...task,
+              projectName: project.name,
+              projectId: project._id,
+            }))
+          );
         }
-        
-        setTasks(allTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10));
+
+        if (!isMounted) return;
+
+        setTasks(
+          allTasks
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 10)
+        );
       } catch (err) {
         console.error('Failed to fetch tasks', err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+
+    setLoading(true);
     fetchAllTasks();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled]);
 
   return (
     <Card>
@@ -38,7 +66,9 @@ export default function Analytics() {
         <CardTitle>Recent Tasks</CardTitle>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {!enabled ? (
+          <p className="text-center text-gray-400 py-8 text-sm">Waiting for authentication…</p>
+        ) : loading ? (
           <div className="text-center py-8">
             <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
           </div>
@@ -58,16 +88,24 @@ export default function Analytics() {
                       <Circle className="h-5 w-5 text-gray-400 flex-shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className={`font-medium text-sm ${task.status === 'Complete' ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                      <p
+                        className={`font-medium text-sm ${
+                          task.status === 'Complete' ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'
+                        }`}
+                      >
                         {task.title}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {task.projectName}
-                        {task.assignee && ` • ${task.assignee.name}`}
+                        {task.assignee && ` · ${task.assignee.name}`}
                       </p>
                     </div>
                   </div>
-                  <Badge variant={task.status === 'Complete' ? 'success' : task.status === 'In Progress' ? 'warning' : 'default'}>
+                  <Badge
+                    variant={
+                      task.status === 'Complete' ? 'success' : task.status === 'In Progress' ? 'warning' : 'default'
+                    }
+                  >
                     {task.status}
                   </Badge>
                 </div>

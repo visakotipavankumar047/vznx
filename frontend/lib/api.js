@@ -7,13 +7,15 @@ const DEFAULT_API_BASE =
 export const API_BASE = process.env.VITE_BACKEND_LINK || DEFAULT_API_BASE;
 
 async function request(path, options = {}) {
+  const { headers = {}, ...rest } = options;
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
-      ...(options.headers || {}),
+      ...headers,
     },
-    ...options,
+    credentials: 'include',
     cache: 'no-store',
+    ...rest,
   });
 
   if (!response.ok) {

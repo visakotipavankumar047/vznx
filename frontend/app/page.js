@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import DashboardLayout from '@/components/DashboardLayout';
-import Analytics from './_components/Analytics';
+import AnalyticsPanel from '@/components/AnalyticsPanel';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Plus, TrendingUp, CheckCircle, Users, FolderKanban } from 'lucide-react';
@@ -20,22 +22,28 @@ export default function DashboardPage() {
     completedTasks: 0,
   });
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { isLoaded, userId } = useAuth();
+  const isAuthorized = isLoaded && Boolean(userId);
 
   useEffect(() => {
     const fetchStats = async () => {
+      if (!isAuthorized) {
+        return;
+      }
+
+      setLoading(true);
+
       try {
-        const [projects, teamMembers] = await Promise.all([
-          api.getProjects(),
-          api.getTeamMembers(),
-        ]);
+        const [projects, teamMembers] = await Promise.all([api.getProjects(), api.getTeamMembers()]);
 
         const totalTasks = projects.reduce((sum, p) => sum + (p.taskSummary?.total || 0), 0);
         const completedTasks = projects.reduce((sum, p) => sum + (p.taskSummary?.completed || 0), 0);
 
         setStats({
           totalProjects: projects.length,
-          inProgress: projects.filter(p => p.status === 'In Progress').length,
-          completed: projects.filter(p => p.status === 'Completed').length,
+          inProgress: projects.filter((p) => p.status === 'In Progress').length,
+          completed: projects.filter((p) => p.status === 'Completed').length,
           teamMembers: teamMembers.length,
           totalTasks,
           completedTasks,
@@ -46,8 +54,43 @@ export default function DashboardPage() {
         setLoading(false);
       }
     };
+
     fetchStats();
-  }, []);
+  }, [isAuthorized]);
+
+  useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
+    if (!isAuthorized) {
+      router.replace('/auth');
+    }
+  }, [isAuthorized, isLoaded, router]);
+
+  if (!isLoaded) {
+    return (
+      <DashboardLayout showHeader={false}>
+        <PageWrapper>
+          <div className="flex min-h-screen items-center justify-center">
+            <p className="text-sm text-slate-400">Checking your access…</p>
+          </div>
+        </PageWrapper>
+      </DashboardLayout>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <DashboardLayout showHeader={false}>
+        <PageWrapper>
+          <div className="flex min-h-screen items-center justify-center">
+            <p className="text-sm text-slate-400">Redirecting to Clerk…</p>
+          </div>
+        </PageWrapper>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -173,7 +216,7 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          <Analytics />
+          <AnalyticsPanel enabled={isAuthorized} />
         </div>
       </PageWrapper>
     </DashboardLayout>
