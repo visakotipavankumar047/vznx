@@ -17,6 +17,7 @@ const taskSchema = new Schema(
       enum: ['Low', 'Medium', 'High'],
       default: 'Medium',
     },
+    budget: { type: Number, default: 0, min: 0 },
   },
   {
     timestamps: true,

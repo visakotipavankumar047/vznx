@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import DashboardLayout from '@/components/DashboardLayout';
 import TeamHeader from './_components/TeamHeader';
@@ -9,6 +9,7 @@ import TeamGrid from './_components/TeamGrid';
 import PageWrapper from '@/components/PageWrapper';
 import { Modal } from '@/components/Modal';
 import { TeamMemberForm } from '@/components/TeamMemberForm';
+import { ROLE_GROUPS, getRoleCategory } from '@/lib/roleCategories';
 
 export default function TeamPage() {
   const { teamMembers, loading, error, fetchTeamMembers, createTeamMember, updateTeamMember, deleteTeamMember } = useTeamMembers();
@@ -16,6 +17,30 @@ export default function TeamPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('All');
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map();
+    counts.set('All', teamMembers.length);
+
+    ROLE_GROUPS.forEach((group) => {
+      counts.set(group.label, 0);
+    });
+
+    teamMembers.forEach((member) => {
+      const category = getRoleCategory(member.role);
+      counts.set(category, (counts.get(category) || 0) + 1);
+    });
+
+    return counts;
+  }, [teamMembers]);
+
+  const filteredMembers = useMemo(() => {
+    if (activeCategory === 'All') {
+      return teamMembers;
+    }
+    return teamMembers.filter((member) => getRoleCategory(member.role) === activeCategory);
+  }, [teamMembers, activeCategory]);
 
   useEffect(() => {
     fetchTeamMembers();
@@ -60,9 +85,13 @@ export default function TeamPage() {
       <PageWrapper>
         <div className="layout-content-container flex flex-col w-full max-w-6xl flex-1 mx-auto">
           <TeamHeader onAddMember={() => setIsCreateModalOpen(true)} />
-          <TeamToolbar />
+          <TeamToolbar
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+            categoryCounts={categoryCounts}
+          />
           <TeamGrid 
-            teamMembers={teamMembers} 
+            teamMembers={filteredMembers} 
             loading={loading}
             error={error}
             onEdit={openEditModal}

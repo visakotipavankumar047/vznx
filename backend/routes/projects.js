@@ -1,7 +1,8 @@
-const router = require('express').Router();
-const Project = require('../models/project.model');
-const Task = require('../models/task.model');
-const TeamMember = require('../models/teamMember.model');
+const router = require("express").Router();
+const Project = require("../models/project.model");
+const Task = require("../models/task.model");
+const TeamMember = require("../models/teamMember.model");
+const { suggestProjectBudget } = require("../utils/budgetAI");
 
 const formatProject = (project, taskSummaryMap) => {
   const summary = taskSummaryMap.get(project._id.toString()) || {
@@ -15,17 +16,37 @@ const formatProject = (project, taskSummaryMap) => {
   };
 };
 
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const projects = await Project.find().populate('projectLead').sort({ createdAt: -1 }).lean();
+    const projects = await Project.find()
+      .populate("projectLead")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const tasks = await Task.find()
+      .populate("assignee", "name role")
+      .select("project assignee status")
+      .lean();
+
+    const tasksByProject = new Map();
+    tasks.forEach((task) => {
+      const projectId = task.project?.toString();
+      if (projectId) {
+        if (!tasksByProject.has(projectId)) {
+          tasksByProject.set(projectId, []);
+        }
+        tasksByProject.get(projectId).push(task);
+      }
+    });
+
     const taskSummary = await Task.aggregate([
       {
         $group: {
-          _id: '$project',
+          _id: "$project",
           total: { $sum: 1 },
           completed: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'Complete'] }, 1, 0],
+              $cond: [{ $eq: ["$status", "Complete"] }, 1, 0],
             },
           },
         },
@@ -43,153 +64,202 @@ router.get('/', async (req, res) => {
       });
     });
 
-    res.json(projects.map((project) => formatProject(project, summaryMap)));
+    const projectsWithTasks = projects.map((project) => {
+      const projectId = project._id.toString();
+      return {
+        ...formatProject(project, summaryMap),
+        tasks: tasksByProject.get(projectId) || [],
+      };
+    });
+
+    res.json(projectsWithTasks);
   } catch (error) {
-    console.error('Failed to fetch projects', error);
-    res.status(500).json({ message: 'Failed to fetch projects' });
+    console.error("Failed to fetch projects", error);
+    res.status(500).json({ message: "Failed to fetch projects" });
   }
 });
 
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const payload = req.body;
     if (!payload.name) {
-      return res.status(400).json({ message: 'Project name is required' });
+      return res.status(400).json({ message: "Project name is required" });
     }
     const project = new Project({
       name: payload.name,
-      status: payload.status || 'Planned',
+      status: payload.status || "Planned",
       progress: payload.progress ?? 0,
       studio: payload.studio,
       dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
       notes: payload.notes,
-      color: payload.color || '#2563eb',
+      color: payload.color || "#2563eb",
       projectLead: payload.projectLead || null,
+      budget: payload.budget || 0,
+      budgetBreakdown: payload.budgetBreakdown || {
+        labor: 0,
+        materials: 0,
+        overhead: 0,
+      },
     });
 
     const saved = await project.save();
     res.status(201).json(saved);
   } catch (error) {
-    console.error('Failed to create project', error);
-    res.status(400).json({ message: 'Failed to create project', error: error.message });
+    console.error("Failed to create project", error);
+    res
+      .status(400)
+      .json({ message: "Failed to create project", error: error.message });
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.post("/suggest-budget", async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id).populate('projectLead').lean();
+    const projectData = req.body;
+    const suggestion = await suggestProjectBudget(projectData);
+    res.json(suggestion);
+  } catch (error) {
+    console.error("Failed to suggest budget", error);
+    res
+      .status(500)
+      .json({ message: "Failed to suggest budget", error: error.message });
+  }
+});
+
+router.get("/:id", async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id)
+      .populate("projectLead")
+      .lean();
     if (!project) {
-      return res.status(404).json({ message: 'Project not found' });
+      return res.status(404).json({ message: "Project not found" });
     }
 
     const totalTasks = await Task.countDocuments({ project: project._id });
-    const completedTasks = await Task.countDocuments({ project: project._id, status: 'Complete' });
+    const completedTasks = await Task.countDocuments({
+      project: project._id,
+      status: "Complete",
+    });
 
     res.json({
       ...project,
       taskSummary: { total: totalTasks, completed: completedTasks },
     });
   } catch (error) {
-    console.error('Failed to fetch project', error);
-    res.status(500).json({ message: 'Failed to fetch project' });
+    console.error("Failed to fetch project", error);
+    res.status(500).json({ message: "Failed to fetch project" });
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
-    const mongoose = require('mongoose');
+    const mongoose = require("mongoose");
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(404).json({ message: 'Invalid project ID' });
+      return res.status(404).json({ message: "Invalid project ID" });
     }
     const payload = req.body;
     const progress = payload.progress ?? undefined;
     const update = {};
 
-    ['name', 'status', 'studio', 'notes', 'color'].forEach((key) => {
-      if (payload[key] !== undefined) {
-        update[key] = payload[key];
+    ["name", "status", "studio", "notes", "color", "revenue", "budget"].forEach(
+      (key) => {
+        if (payload[key] !== undefined) {
+          update[key] = payload[key];
+        }
       }
-    });
+    );
+
+    if (payload.budgetBreakdown !== undefined) {
+      update.budgetBreakdown = payload.budgetBreakdown;
+    }
 
     if (payload.projectLead !== undefined) {
-      update.projectLead = payload.projectLead === '' ? null : payload.projectLead;
+      update.projectLead =
+        payload.projectLead === "" ? null : payload.projectLead;
     }
 
     if (payload.dueDate !== undefined) {
       update.dueDate = payload.dueDate ? new Date(payload.dueDate) : null;
     }
-    if (typeof progress === 'number') {
+    if (typeof progress === "number") {
       update.progress = Math.min(100, Math.max(0, progress));
       if (update.progress === 100) {
-        update.status = 'Completed';
+        update.status = "Completed";
       } else if (update.progress === 0 && !update.status) {
-        update.status = 'Planned';
+        update.status = "Planned";
       }
     }
 
     const updated = await Project.findByIdAndUpdate(req.params.id, update, {
       new: true,
       runValidators: true,
-    }).populate('projectLead');
+    }).populate("projectLead");
 
     if (!updated) {
-      return res.status(404).json({ message: 'Project not found' });
+      return res.status(404).json({ message: "Project not found" });
     }
 
     res.json(updated);
   } catch (error) {
-    console.error('Failed to update project', error);
-    res.status(400).json({ message: 'Failed to update project', error: error.message });
+    console.error("Failed to update project", error);
+    res
+      .status(400)
+      .json({ message: "Failed to update project", error: error.message });
   }
 });
 
-router.patch('/:id/progress', async (req, res) => {
+router.patch("/:id/progress", async (req, res) => {
   try {
     const parsed = Number(req.body.progress);
     if (Number.isNaN(parsed)) {
-      return res.status(400).json({ message: 'Invalid progress value' });
+      return res.status(400).json({ message: "Invalid progress value" });
     }
     const progress = Math.min(100, Math.max(0, parsed));
     const status =
-      progress === 100 ? 'Completed' : progress === 0 ? 'Planned' : 'In Progress';
+      progress === 100
+        ? "Completed"
+        : progress === 0
+        ? "Planned"
+        : "In Progress";
     const project = await Project.findByIdAndUpdate(
       req.params.id,
       { progress, status },
-      { new: true, runValidators: true },
+      { new: true, runValidators: true }
     );
 
     if (!project) {
-      return res.status(404).json({ message: 'Project not found' });
+      return res.status(404).json({ message: "Project not found" });
     }
 
     res.json(project);
   } catch (error) {
-    console.error('Failed to update project progress', error);
-    res.status(400).json({ message: 'Failed to update project progress' });
+    console.error("Failed to update project progress", error);
+    res.status(400).json({ message: "Failed to update project progress" });
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     const deleted = await Project.findByIdAndDelete(req.params.id);
     if (!deleted) {
-      return res.status(404).json({ message: 'Project not found' });
+      return res.status(404).json({ message: "Project not found" });
     }
 
-    const projectTasks = await Task.find({ project: req.params.id }).select('_id');
+    const projectTasks = await Task.find({ project: req.params.id }).select(
+      "_id"
+    );
     const taskIds = projectTasks.map((task) => task._id);
     await Task.deleteMany({ _id: { $in: taskIds } });
     if (taskIds.length > 0) {
       await TeamMember.updateMany(
         { tasks: { $in: taskIds } },
-        { $pull: { tasks: { $in: taskIds } } },
+        { $pull: { tasks: { $in: taskIds } } }
       );
     }
 
-    res.json({ message: 'Project deleted' });
+    res.json({ message: "Project deleted" });
   } catch (error) {
-    console.error('Failed to delete project', error);
-    res.status(500).json({ message: 'Failed to delete project' });
+    console.error("Failed to delete project", error);
+    res.status(500).json({ message: "Failed to delete project" });
   }
 });
 

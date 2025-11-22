@@ -1,16 +1,24 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
-import DashboardLayout from '@/components/DashboardLayout';
-import AnalyticsPanel from '@/components/AnalyticsPanel';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card';
-import { Button } from '@/components/Button';
-import { Plus, TrendingUp, CheckCircle, Users, FolderKanban } from 'lucide-react';
-import Link from 'next/link';
-import PageWrapper from '@/components/PageWrapper';
-import { api } from '@/lib/api';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import DashboardLayout from "@/components/DashboardLayout";
+import AnalyticsPanel from "@/components/AnalyticsPanel";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/Card";
+import { Button } from "@/components/Button";
+import {
+  Plus,
+  TrendingUp,
+  CheckCircle,
+  Users,
+  FolderKanban,
+} from "lucide-react";
+import Link from "next/link";
+import PageWrapper from "@/components/PageWrapper";
+import { api } from "@/lib/api";
+import RevenuePanel from "@/components/RevenuePanel";
+import DashboardStatsChart from "@/components/DashboardStatsChart";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -21,6 +29,7 @@ export default function DashboardPage() {
     totalTasks: 0,
     completedTasks: 0,
   });
+  const [selectedMetric, setSelectedMetric] = useState("totalProjects");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { isLoaded, userId } = useAuth();
@@ -35,21 +44,30 @@ export default function DashboardPage() {
       setLoading(true);
 
       try {
-        const [projects, teamMembers] = await Promise.all([api.getProjects(), api.getTeamMembers()]);
+        const [projects, teamMembers] = await Promise.all([
+          api.getProjects(),
+          api.getTeamMembers(),
+        ]);
 
-        const totalTasks = projects.reduce((sum, p) => sum + (p.taskSummary?.total || 0), 0);
-        const completedTasks = projects.reduce((sum, p) => sum + (p.taskSummary?.completed || 0), 0);
+        const totalTasks = projects.reduce(
+          (sum, p) => sum + (p.taskSummary?.total || 0),
+          0
+        );
+        const completedTasks = projects.reduce(
+          (sum, p) => sum + (p.taskSummary?.completed || 0),
+          0
+        );
 
         setStats({
           totalProjects: projects.length,
-          inProgress: projects.filter((p) => p.status === 'In Progress').length,
-          completed: projects.filter((p) => p.status === 'Completed').length,
+          inProgress: projects.filter((p) => p.status === "In Progress").length,
+          completed: projects.filter((p) => p.status === "Completed").length,
           teamMembers: teamMembers.length,
           totalTasks,
           completedTasks,
         });
       } catch (err) {
-        console.error('Failed to fetch stats', err);
+        console.error("Failed to fetch stats", err);
       } finally {
         setLoading(false);
       }
@@ -64,7 +82,7 @@ export default function DashboardPage() {
     }
 
     if (!isAuthorized) {
-      router.replace('/auth');
+      router.replace("/auth");
     }
   }, [isAuthorized, isLoaded, router]);
 
@@ -113,48 +131,96 @@ export default function DashboardPage() {
             </Link>
           </header>
 
+          <DashboardStatsChart
+            stats={stats}
+            selectedMetric={selectedMetric}
+            loading={loading}
+          />
+
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+            <Card
+              className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow cursor-pointer"
+              role="button"
+              aria-pressed={selectedMetric === "totalProjects"}
+              onClick={() => setSelectedMetric("totalProjects")}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total Projects
+                </CardTitle>
                 <FolderKanban className="h-5 w-5 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold">{loading ? '...' : stats.totalProjects}</p>
-                <p className="text-xs text-muted-foreground mt-1">All projects</p>
+                <p className="text-4xl font-bold">
+                  {loading ? "..." : stats.totalProjects}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  All projects
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-orange-500 hover:shadow-lg transition-shadow">
+            <Card
+              className="border-l-4 border-l-orange-500 hover:shadow-lg transition-shadow cursor-pointer"
+              role="button"
+              aria-pressed={selectedMetric === "inProgress"}
+              onClick={() => setSelectedMetric("inProgress")}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  In Progress
+                </CardTitle>
                 <TrendingUp className="h-5 w-5 text-orange-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold">{loading ? '...' : stats.inProgress}</p>
-                <p className="text-xs text-muted-foreground mt-1">Active projects</p>
+                <p className="text-4xl font-bold">
+                  {loading ? "..." : stats.inProgress}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Active projects
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
+            <Card
+              className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow cursor-pointer"
+              role="button"
+              aria-pressed={selectedMetric === "completed"}
+              onClick={() => setSelectedMetric("completed")}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Completed</CardTitle>
                 <CheckCircle className="h-5 w-5 text-green-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold">{loading ? '...' : stats.completed}</p>
-                <p className="text-xs text-muted-foreground mt-1">Finished projects</p>
+                <p className="text-4xl font-bold">
+                  {loading ? "..." : stats.completed}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Finished projects
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow">
+            <Card
+              className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow cursor-pointer"
+              role="button"
+              aria-pressed={selectedMetric === "teamMembers"}
+              onClick={() => setSelectedMetric("teamMembers")}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Team Members</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Team Members
+                </CardTitle>
                 <Users className="h-5 w-5 text-purple-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold">{loading ? '...' : stats.teamMembers}</p>
-                <p className="text-xs text-muted-foreground mt-1">Active members</p>
+                <p className="text-4xl font-bold">
+                  {loading ? "..." : stats.teamMembers}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Active members
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -169,20 +235,35 @@ export default function DashboardPage() {
                   <div>
                     <div className="flex justify-between mb-2">
                       <span className="text-sm font-medium">Total Tasks</span>
-                      <span className="text-sm font-bold">{loading ? '...' : stats.totalTasks}</span>
+                      <span className="text-sm font-bold">
+                        {loading ? "..." : stats.totalTasks}
+                      </span>
                     </div>
                     <div className="flex justify-between mb-2">
                       <span className="text-sm font-medium">Completed</span>
-                      <span className="text-sm font-bold text-green-600">{loading ? '...' : stats.completedTasks}</span>
+                      <span className="text-sm font-bold text-green-600">
+                        {loading ? "..." : stats.completedTasks}
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mt-3">
                       <div
                         className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all"
-                        style={{ width: `${stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%` }}
+                        style={{
+                          width: `${
+                            stats.totalTasks > 0
+                              ? (stats.completedTasks / stats.totalTasks) * 100
+                              : 0
+                          }%`,
+                        }}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
-                      {stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}% completion rate
+                      {stats.totalTasks > 0
+                        ? Math.round(
+                            (stats.completedTasks / stats.totalTasks) * 100
+                          )
+                        : 0}
+                      % completion rate
                     </p>
                   </div>
                 </div>
@@ -215,6 +296,8 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          <RevenuePanel enabled={isAuthorized} />
 
           <AnalyticsPanel enabled={isAuthorized} />
         </div>

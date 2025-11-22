@@ -10,6 +10,7 @@ import PageWrapper from '@/components/PageWrapper';
 import { Modal } from '@/components/Modal';
 import { ProjectForm } from '@/components/ProjectForm';
 import AnalyticsPanel from '@/components/AnalyticsPanel';
+import AssignedMembersCards from './_components/AssignedMembersCards';
 
 export default function ProjectsPage() {
   const { projects, loading, error, fetchProjects, createProject, updateProject, updateProgress, deleteProject } = useProjects();
@@ -70,9 +71,10 @@ export default function ProjectsPage() {
         <div className="flex w-full flex-col gap-6">
           <ProjectHeader onAddProject={handleAddProject} />
           <section className="flex flex-col w-full gap-4">
+            <AssignedMembersCards projects={projects} />
             <ProjectToolbar />
-            <ProjectTable 
-              projects={projects} 
+            <ProjectTable
+              projects={projects}
               loading={loading}
               error={error}
               onEdit={openEditModal}

@@ -28,6 +28,7 @@ export default function TasksPage() {
     project: '',
     assigneeId: '',
     status: 'Pending',
+    budget: '',
   });
 
   useEffect(() => {
@@ -66,10 +67,13 @@ export default function TasksPage() {
 
     setIsSubmitting(true);
     try {
-      await api.createTask(formData);
+      await api.createTask({
+        ...formData,
+        budget: formData.budget ? Number(formData.budget) : 0,
+      });
       toast.success('Task created successfully');
       setIsCreateModalOpen(false);
-      setFormData({ title: '', project: '', assigneeId: '', status: 'Pending' });
+      setFormData({ title: '', project: '', assigneeId: '', status: 'Pending', budget: '' });
       fetchData();
     } catch (err) {
       console.error(err);
@@ -88,11 +92,14 @@ export default function TasksPage() {
 
     setIsSubmitting(true);
     try {
-      await api.updateTask(editingTask._id, formData);
+      await api.updateTask(editingTask._id, {
+        ...formData,
+        budget: formData.budget ? Number(formData.budget) : 0,
+      });
       toast.success('Task updated successfully');
       setIsEditModalOpen(false);
       setEditingTask(null);
-      setFormData({ title: '', project: '', assigneeId: '', status: 'Pending' });
+      setFormData({ title: '', project: '', assigneeId: '', status: 'Pending', budget: '' });
       fetchData();
     } catch (err) {
       console.error(err);
@@ -109,6 +116,7 @@ export default function TasksPage() {
       project: task.project,
       assigneeId: task.assignee?._id || '',
       status: task.status,
+      budget: typeof task.budget === 'number' ? String(task.budget) : '',
     });
     setIsEditModalOpen(true);
   };
@@ -277,7 +285,7 @@ export default function TasksPage() {
 
         <Modal isOpen={isCreateModalOpen} onClose={() => {
           setIsCreateModalOpen(false);
-          setFormData({ title: '', project: '', assigneeId: '', status: 'Pending' });
+          setFormData({ title: '', project: '', assigneeId: '', status: 'Pending', budget: '' });
         }} title="Create New Task">
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
@@ -342,6 +350,20 @@ export default function TasksPage() {
               </select>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Budget (USD)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.budget}
+                onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                placeholder="0.00"
+                className="font-mono"
+              />
+            </div>
+
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={isSubmitting} className="flex-1">
                 {isSubmitting ? 'Creating...' : 'Create Task'}
@@ -356,7 +378,7 @@ export default function TasksPage() {
         <Modal isOpen={isEditModalOpen} onClose={() => {
           setIsEditModalOpen(false);
           setEditingTask(null);
-          setFormData({ title: '', project: '', assigneeId: '', status: 'Pending' });
+          setFormData({ title: '', project: '', assigneeId: '', status: 'Pending', budget: '' });
         }} title="Edit Task">
           <form onSubmit={handleEdit} className="space-y-4">
             <div>
@@ -403,6 +425,20 @@ export default function TasksPage() {
               </select>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Budget (USD)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.budget}
+                onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                placeholder="0.00"
+                className="font-mono"
+              />
+            </div>
+
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={isSubmitting} className="flex-1">
                 {isSubmitting ? 'Updating...' : 'Update Task'}
@@ -410,7 +446,7 @@ export default function TasksPage() {
               <Button type="button" variant="outline" onClick={() => {
                 setIsEditModalOpen(false);
                 setEditingTask(null);
-                setFormData({ title: '', project: '', assigneeId: '', status: 'Pending' });
+                setFormData({ title: '', project: '', assigneeId: '', status: 'Pending', budget: '' });
               }} disabled={isSubmitting}>
                 Cancel
               </Button>

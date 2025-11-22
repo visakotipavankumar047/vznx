@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Input } from './Input';
 import { Button } from './Button';
+import { ROLE_GROUPS } from '@/lib/roleCategories';
 
 const teamMemberSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
@@ -44,7 +45,21 @@ export function TeamMemberForm({ initialData, onSubmit, onCancel, isSubmitting }
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Role *
         </label>
-        <Input {...register('role')} placeholder="Software Engineer" />
+        <select
+          {...register('role')}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="">Select Role</option>
+          {ROLE_GROUPS.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
         {errors.role && (
           <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>
         )}
